@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoinProximité — prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0; background: #f4f6f8; color: #1a1a1a;
+    font-size: 16px; line-height: 1.5;
+  }
+  header.top {
+    background: #0a6e5c; color: white; padding: .8rem 1rem;
+    position: sticky; top: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header.top h1 { margin: 0; font-size: 1.1rem; }
+  header.top a { color: white; text-decoration: none; font-size: .85rem; opacity: .9; }
+  .alert-bar {
+    background: #fff3cd; color: #664d03; padding: .6rem 1rem;
+    font-size: .85rem; border-bottom: 1px solid #ffe69c;
+  }
+  .alert-bar a { color: #664d03; font-weight: 600; }
+  main { padding: 1rem; max-width: 700px; margin: auto; }
+  input, select, button, textarea {
+    font-family: inherit; font-size: 1rem;
+    padding: .7rem .8rem; width: 100%;
+    border-radius: 8px; border: 1px solid #ccc;
+    margin-bottom: .6rem; background: white;
+  }
+  input:focus, select:focus { outline: 2px solid #0a6e5c; outline-offset: -1px; }
+  button.primary {
+    background: #0a6e5c; color: white; border: none;
+    font-weight: 600; cursor: pointer;
+  }
+  button.secondary {
+    background: white; color: #0a6e5c; border: 1px solid #0a6e5c;
+    cursor: pointer;
+  }
+  .filters-toggle {
+    background: white; border: 1px solid #ddd; padding: .6rem .8rem;
+    border-radius: 8px; cursor: pointer; margin-bottom: .6rem;
+    font-size: .9rem; width: 100%; text-align: left;
+  }
+  .filters { display: none; }
+  .filters.open { display: block; }
+  .count { font-size: .85rem; color: #555; margin: .4rem 0 .8rem; }
+  .card {
+    background: white; border-radius: 10px; padding: 1rem;
+    margin-bottom: .8rem; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    cursor: pointer; transition: box-shadow .15s;
+  }
+  .card:active { box-shadow: 0 1px 6px rgba(0,0,0,.15); }
+  .card h3 { margin: 0 0 .3rem; font-size: 1.05rem; color: #0a6e5c; }
+  .meta { font-size: .85rem; color: #555; margin: .2rem 0; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: .75rem; margin: 2px 3px 2px 0; font-weight: 500;
+  }
+  .badge.service { background: #e6f4f1; color: #0a6e5c; }
+  .badge.verifiee { background: #d4edda; color: #155724; }
+  .badge.a_verifier { background: #fff3cd; color: #856404; }
+  .badge.perimee { background: #f8d7da; color: #721c24; }
+
+  /* Vue détail */
+  #detail { display: none; }
+  #detail.open { display: block; }
+  #list-view.hidden { display: none; }
+  .detail-header { display: flex; align-items: start; gap: .6rem; margin-bottom: 1rem; }
+  .back-btn {
+    background: none; border: none; color: #0a6e5c; font-size: 1.4rem;
+    cursor: pointer; padding: 0; width: auto; margin: 0;
+  }
+  .detail-block {
+    background: white; border-radius: 10px; padding: 1rem;
+    margin-bottom: .8rem; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .detail-block h4 {
+    margin: 0 0 .5rem; font-size: .85rem; color: #666;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .detail-block .value { font-size: 1rem; }
+  .call-btn {
+    display: block; background: #0a6e5c; color: white;
+    text-decoration: none; text-align: center;
+    padding: .9rem; border-radius: 8px; font-weight: 600;
+    margin-bottom: .6rem;
+  }
+  .report-btn {
+    display: block; background: white; color: #0a6e5c;
+    border: 1px solid #0a6e5c; text-decoration: none;
+    text-align: center; padding: .8rem; border-radius: 8px;
+    margin-bottom: .6rem; font-weight: 500;
+  }
+  .transparence { font-size: .85rem; color: #555; }
+  .transparence strong { color: #333; }
+  .empty { text-align: center; padding: 2rem 1rem; color: #666; }
+  footer.bottom {
+    text-align: center; padding: 2rem 1rem; font-size: .8rem;
+    color: #888; border-top: 1px solid #e0e0e0; margin-top: 2rem;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>SoinProximité</h1>
+  <a href="#" onclick="showList(); return false;">← Recherche</a>
+</header>
+
+<div class="alert-bar">
+  ⚠️ Ce site ne remplace pas un médecin. En cas d'urgence, appelez le <strong>112</strong>.
+</div>
+
+<main>
+  <!-- VUE LISTE -->
+  <div id="list-view">
+    <input id="q" type="search" placeholder="🔍 Rechercher un nom, un service, un quartier…" autocomplete="off">
+
+    <button class="filters-toggle" onclick="toggleFilters()">⚙️ Filtres avancés</button>
+
+    <div id="filters" class="filters">
+      <select id="commune">
+        <option value="">Toutes les communes</option>
+        <option value="Djougou">Djougou</option>
+        <option value="Copargo">Copargo</option>
+        <option value="Ouaké">Ouaké</option>
+      </select>
+      <select id="type">
+        <option value="">Tous les types</option>
+        <option>Centre de santé</option>
+        <option>Poste de santé</option>
+        <option>Hôpital de zone</option>
+        <option>Cabinet médical</option>
+        <option>Laboratoire d'analyses</option>
+        <option>Pharmacie</option>
+      </select>
+      <select id="service">
+        <option value="">Tous les services</option>
+        <option>Maternité</option>
+        <option>Vaccination</option>
+        <option>Consultations générales</option>
+        <option>Pédiatrie</option>
+        <option>Planning familial</option>
+        <option>Analyses</option>
+        <option>Urgences de base</option>
+      </select>
+      <select id="verif">
+        <option value="">Tous les statuts</option>
+        <option value="verifiee">Vérifiée</option>
+        <option value="a_verifier">À vérifier</option>
+        <option value="perimee">Périmée</option>
+      </select>
+      <button class="secondary" onclick="resetFilters()">Réinitialiser</button>
+    </div>
+
+    <div id="count" class="count"></div>
+    <div id="list"></div>
+  </div>
+
+  <!-- VUE DÉTAIL -->
+  <div id="detail"></div>
+</main>
+
+<footer class="bottom">
+  SoinProximité — prototype de démonstration. Données fictives.
+</footer>
+
+<script>
+// ============================================================
+// DONNÉES DE DÉMONSTRATION — à remplacer par des fiches réelles
+// ============================================================
+const etablissements = [
+  {
+    id: "cs-djougou-central",
+    nom: "Centre de Santé Djougou Central",
+    type: "Centre de santé",
+    commune: "Djougou",
+    localite: "Djougou",
+    quartier: "Centre-ville",
+    adresse: "Avenue de la Préfecture, face au marché central",
+    tel: "+22921000001",
+    horaires: "Lun–Sam : 7h30–18h00 · Dim : 8h–12h (urgences)",
+    services: ["Maternité", "Vaccination", "Consultations générales", "Pédiatrie"],
+    acces: "À 200 m du grand marché, à droite après la pharmacie",
+    statut: "verifiee",
+    verifDate: "2026-09-15",
+    source: "Appel téléphonique du 15/09/2026 auprès du responsable",
+    lat: 9.7085, lng: 1.6659
+  },
+  {
+    id: "cs-ouake-1",
+    nom: "Centre de Santé d'Ouaké",
+    type: "Centre de santé",
+    commune: "Ouaké",
+    localite: "Ouaké",
+    quartier: "Centre",
+    adresse: "Route principale, près de la mairie",
+    tel: "+22921000002",
+    horaires: "Lun–Ven : 8h–17h · Sam : 8h–12h",
+    services: ["Maternité", "Consultations générales", "Vaccination"],
+    acces: "Prendre la route de la mairie, à 300 m",
+    statut: "verifiee",
+    verifDate: "2026-10-02",
+    source: "Visite sur place du 02/10/2026",
+    lat: 9.6607, lng: 1.5813
+  },
+  {
+    id: "ps-copargo-1",
+    nom: "Poste de Santé de Copargo",
+    type: "Poste de santé",
+    commune: "Copargo",
+    localite: "Copargo",
+    quartier: "Centre",
+    adresse: "Derrière la préfecture",
+    tel: "",
+    horaires: "Lun–Ven : 8h–16h",
+    services: ["Consultations générales", "Vaccination"],
+    acces: "Derrière la préfecture, bâtiment vert",
+    statut: "a_verifier",
+    verifDate: "2025-11-10",
+    source: "Aucune vérification récente",
+    lat: null, lng: null
+  },
+  {
+    id: "labo-djougou-1",
+    nom: "Laboratoire d'Analyses Djougou Santé",
+    type: "Laboratoire d'analyses",
+    commune: "Djougou",
+    localite: "Djougou",
+    quartier: "Quartier Kilir",
+    adresse: "Rue du marché Kilir, immeuble bleu",
+    tel: "+22921000003",
+    horaires: "Lun–Sam : 7h–17h",
+    services: ["Analyses"],
+    acces: "Près du marché Kilir, bâtiment bleu",
+    statut: "verifiee",
+    verifDate: "2026-08-20",
+    source: "Appel téléphonique du 20/08/2026",
+    lat: null, lng: null
+  },
+  {
+    id: "pharma-ouake-1",
+    nom: "Pharmacie de l'Espoir",
+    type: "Pharmacie",
+    commune: "Ouaké",
+    localite: "Ouaké",
+    quartier: "Marché",
+    adresse: "Face au marché d'Ouaké",
+    tel: "+22921000004",
+    horaires: "Lun–Sam : 8h–20h · Dim : 9h–13h",
+    services: [],
+    acces: "Face au marché, à côté de la station",
+    statut: "perimee",
+    verifDate: "2025-03-12",
+    source: "Visite ancienne du 12/03/2025",
+    lat: null, lng: null
+  }
+];
+
+// ============================================================
+// LOGIQUE
+// ============================================================
+const $q = document.getElementById('q');
+const $commune = document.getElementById('commune');
+const $type = document.getElementById('type');
+const $service = document.getElementById('service');
+const $verif = document.getElementById('verif');
+const $list = document.getElementById('list');
+const $count = document.getElementById('count');
+const $listView = document.getElementById('list-view');
+const $detail = document.getElementById('detail');
+
+function toggleFilters() {
+  document.getElementById('filters').classList.toggle('open');
+}
+function resetFilters() {
+  $commune.value = ''; $type.value = ''; $service.value = ''; $verif.value = '';
+  $q.value = '';
+  render();
+}
+
+function normalize(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function moisDepuis(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+}
+
+function statutAffichage(e) {
+  if (e.statut === 'verifiee') {
+    const mois = moisDepuis(e.verifDate);
+    if (mois > 12) return { cls: 'perimee', label: '🕒 Périmée — à confirmer' };
+    if (mois > 6) return { cls: 'a_verifier', label: '⚠️ Vérifié il y a > 6 mois — appelez avant' };
+    return { cls: 'verifiee', label: '✅ Vérifié le ' + formatDate(e.verifDate) };
+  }
+  if (e.statut === 'a_verifier') return { cls: 'a_verifier', label: '🕒 Information non confirmée' };
+  if (e.statut === 'perimee') return { cls: 'perimee', label: '🕒 Information périmée' };
+  return { cls: 'a_verifier', label: 'Statut inconnu' };
+}
+
+function formatDate(s) {
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function render() {
+  const q = normalize($q.value.trim());
+  const c = $commune.value;
+  const t = $type.value;
+  const sv = $service.value;
+  const v = $verif.value;
+
+  const filtered = etablissements.filter(e => {
+    if (c && e.commune !== c) return false;
+    if (t && e.type !== t) return false;
+    if (sv && !e.services.includes(sv)) return false;
+    if (v && e.statut !== v) return false;
+    if (q) {
+      const haystack = normalize(
+        e.nom + ' ' + e.commune + ' ' + e.localite + ' ' + e.quartier + ' ' + e.services.join(' ')
+      );
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Tri : vérifiée d'abord, puis date de vérif décroissante
+  filtered.sort((a, b) => {
+    const order = { verifiee: 0, a_verifier: 1, perimee: 2 };
+    if (order[a.statut] !== order[b.statut]) return order[a.statut] - order[b.statut];
+    return b.verifDate.localeCompare(a.verifDate);
+  });
+
+  $count.textContent = filtered.length === 0
+    ? 'Aucun résultat'
+    : `${filtered.length} résultat${filtered.length > 1 ? 's' : ''}`;
+
+  if (filtered.length === 0) {
+    $list.innerHTML = `<div class="empty">
+      <p>Aucun résultat. Essayez une autre commune ou un autre service.</p>
+      <a href="#" class="report-btn" onclick="alert('Formulaire de signalement (hors prototype)'); return false;">Signaler une structure manquante</a>
+    </div>`;
+    return;
+  }
+
+  $list.innerHTML = filtered.map(e => {
+    const st = statutAffichage(e);
+    const badges = e.services.slice(0, 3).map(s => `<span class="badge service">${s}</span>`).join('');
+    return `<div class="card" onclick="showDetail('${e.id}')">
+      <h3>${e.nom}</h3>
+      <div class="meta">📍 ${e.localite}, ${e.commune}</div>
+      <div>${badges}</div>
+      <div style="margin-top:.5rem"><span class="badge ${st.cls}">${st.label}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function showDetail(id) {
+  const e = etablissements.find(x => x.id === id);
+  if (!e) return;
+  const st = statutAffichage(e);
+  const services = e.services.length
+    ? e.services.map(s => `<span class="badge service">${s}</span>`).join('')
+    : '<em style="color:#888">Aucun service renseigné</em>';
+
+  const telBlock = e.tel
+    ? `<a href="tel:${e.tel}" class="call-btn">📞 Appeler — ${e.tel}</a>`
+    : `<div style="background:#f4f6f8;padding:.8rem;border-radius:8px;margin-bottom:.6rem;text-align:center;color:#666;font-size:.9rem">
+         Aucun numéro public disponible
+       </div>`;
+
+  let alerte = '';
+  if (e.statut !== 'verifiee' || moisDepuis(e.verifDate) > 6) {
+    alerte = `<div class="alert-bar" style="border-radius:8px;margin-bottom:.8rem">
+      ⚠️ Ces informations n'ont pas été confirmées récemment. Appelez avant de vous déplacer.
+    </div>`;
+  }
+
+  $detail.innerHTML = `
+    <div class="detail-header">
+      <button class="back-btn" onclick="showList()">←</button>
+      <div>
+        <h2 style="margin:0;font-size:1.2rem">${e.nom}</h2>
+        <div class="meta">${e.type}</div>
+      </div>
+    </div>
+    ${alerte}
+    <div style="margin-bottom:.8rem"><span class="badge ${st.cls}">${st.label}</span></div>
+
+    ${telBlock}
+
+    <div class="detail-block">
+      <h4>Adresse</h4>
+      <div class="value">${e.adresse}</div>
+      <div class="meta">${e.quartier}, ${e.localite} — ${e.commune}</div>
+    </div>
+
+    <div class="detail-block">
+      <h4>Horaires communiqués</h4>
+      <div class="value">${e.horaires || 'Non renseignés'}</div>
+    </div>
+
+    <div class="detail-block">
+      <h4>Services déclarés</h4>
+      <div>${services}</div>
+      <div class="meta" style="margin-top:.5rem;font-size:.8rem">
+        Ces services sont <strong>déclarés</strong>, non garantis en temps réel.
+      </div>
+    </div>
+
+    <div class="detail-block">
+      <h4>Comment y accéder</h4>
+      <div class="value">${e.acces || 'Non renseigné'}</div>
+    </div>
+
+    <div class="detail-block transparence">
+      <h4>Transparence</h4>
+      <p><strong>Source :</strong> ${e.source}</p>
+      <p><strong>Dernière vérification :</strong> ${formatDate(e.verifDate)}</p>
+      <p><strong>Statut :</strong> ${st.label}</p>
+    </div>
+
+    <a href="#" class="report-btn" onclick="alert('Formulaire de signalement (hors prototype)'); return false;">
+      ✏️ Signaler une erreur sur cette fiche
+    </a>
+  `;
+
+  $listView.classList.add('hidden');
+  $detail.classList.add('open');
+  window.scrollTo(0, 0);
+}
+
+function showList() {
+  $detail.classList.remove('open');
+  $listView.classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+// Écouteurs
+$q.addEventListener('input', render);
+$commune.addEventListener('change', render);
+$type.addEventListener('change', render);
+$service.addEventListener('change', render);
+$verif.addEventListener('change', render);
+
+render();
+</script>
+</body>
+          </html>
